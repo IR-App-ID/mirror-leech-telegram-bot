@@ -391,12 +391,29 @@ def _mirror(bot, update, isZip=False, extract=False, isQbit=False, isLeech=False
         content_type = get_content_type(link)
         if content_type is None or match(r'text/html|text/plain', content_type):
             try:
-                link = direct_link_generator(link)
-                LOGGER.info(f"Generated link: {link}")
-            except DirectDownloadLinkException as e:
-                LOGGER.info(str(e))
-                if str(e).startswith('ERROR:'):
+               if gdtot_link:
+                  pesan = sendMessage(f"<i>⌛️ Generating drive link from {link}</i>", bot, update)
+                  try:
+                    link = direct_link_generator(link)
+                    deleteMessage(bot, pesan)
+                  except DirectDownloadLinkException as e:
+                    deleteMessage(bot, pesan)
                     return sendMessage(str(e), bot, update)
+               elif link.startswith("https://uptobox.com"):
+                  pesan = sendMessage(f"<i>⌛️ Sedang memproses link Uptobox kamu..</i>\n\nKhusus Uptobox Free, perlu waktu += 30s untuk generate link", bot, update)
+                  try:
+                    link = direct_link_generator(link)
+                    deleteMessage(bot, pesan)
+                  except DirectDownloadLinkException as e:
+                    deleteMessage(bot, pesan)
+                    return sendMessage(str(e), bot, update)
+               else:
+                  link = direct_link_generator(link)
+               LOGGER.info(f"Generated link: {link}")
+            except DirectDownloadLinkException as e:
+               LOGGER.info(str(e))
+               if str(e).startswith('ERROR:'):
+                   return sendMessage(str(e), bot, update)
     elif isQbit and not is_magnet(link) and not ospath.exists(link):
         if link.endswith('.torrent'):
             content_type = None
