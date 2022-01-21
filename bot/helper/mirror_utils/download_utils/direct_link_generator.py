@@ -14,24 +14,28 @@ import re
 from urllib.parse import urlparse, unquote
 from json import loads as jsnloads
 from lk21 import Bypass
+from time import sleep
 from cfscrape import create_scraper
 from bs4 import BeautifulSoup
 from base64 import standard_b64encode
 
 from bot import LOGGER, UPTOBOX_TOKEN, PHPSESSID, CRYPT
 from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.ext_utils.bot_utils import is_gdtot_link
+from bot.helper.ext_utils.bot_utils import is_gdtot_link, get_readable_time
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 
 cookies = {"PHPSESSID": PHPSESSID, "crypt": CRYPT}
-fmed_list = ['fembed.net', 'fembed.com', 'femax20.com', 'fcdn.stream', 'feurl.com', 'layarkacaxxi.icu',
+fmed_list = ['fembed.net', 'fcdn.stream', 'feurl.com',
              'naniplay.nanime.in', 'naniplay.nanime.biz', 'naniplay.com', 'mm9842.com']
-
 
 def direct_link_generator(link: str):
     """ direct links generator """
     if 'youtube.com' in link or 'youtu.be' in link:
         raise DirectDownloadLinkException(f"ERROR: Use /{BotCommands.WatchCommand} to mirror Youtube link\nUse /{BotCommands.ZipWatchCommand} to make zip of Youtube playlist")
+    elif 'https://megaup.net' in link:
+        raise DirectDownloadLinkException(f"ERROR: Mega Up gunakan direct linknya.")
+    elif 'https://t.me' in link:
+        raise DirectDownloadLinkException(f"ERROR: Untuk file Telegram, forward file nya ke sini lalu reply dengan /{BotCommands.MirrorCommand}.")
     elif 'zippyshare.com' in link:
         return zippy_share(link)
     elif 'yadi.sk' in link or 'disk.yandex.com' in link:
@@ -40,6 +44,12 @@ def direct_link_generator(link: str):
         return mediafire(link)
     elif 'uptobox.com' in link:
         return uptobox(link)
+    elif 'layarkacaxxi.icu' in link:
+        return fembed720(link)
+    elif 'fembed.com' in link:
+        return fembed480(link)
+    elif 'femax20.com' in link:
+        return fembed360(link)
     elif 'osdn.net' in link:
         return osdn(link)
     elif 'github.com' in link:
@@ -74,8 +84,98 @@ def direct_link_generator(link: str):
         return fembed(link)
     elif any(x in link for x in ['sbembed.com', 'watchsb.com', 'streamsb.net', 'sbplay.org']):
         return sbembed(link)
+    elif "androiddatahost.com" in link:
+        return androidatahost(link)
+    elif "sfile.mobi" in link:
+        return sfile(link)
+    elif 'https://sourceforge.net' in link:
+        return sourceforge(link)
+    elif 'https://master.dl.sourceforge.net' in link:
+        return sourceforge2(link)
+    elif "dropbox.com/s/" in link:
+        return dropbox1(link)
+    elif "dropbox.com" in link:
+        return dropbox2(link)
     else:
         raise DirectDownloadLinkException(f'No Direct link function found for {link}')
+
+def dropbox1(url: str) -> str:
+    """Dropbox Downloader file
+    Based On https://github.com/thomas-xin/Miza-Player
+    And https://github.com/Jusidama18"""
+    return url.replace("dropbox.com", "dl.dropboxusercontent.com")
+
+
+def dropbox2(url: str) -> str:
+    """ Dropbox Downloader Folder """
+    return url.replace("?dl=0", "?dl=1")
+
+def sourceforge(url: str) -> str:
+    """ SourceForge direct links generator
+    Based on https://github.com/REBEL75/REBELUSERBOT """
+    try:
+        link = re.findall(r"\bhttps?://sourceforge\.net\S+", url)[0]
+    except IndexError:
+        return "`No SourceForge links found`\n"
+    file_path = re.findall(r"files(.*)/download", link)[0]
+    project = re.findall(r"projects?/(.*?)/files", link)[0]
+    mirrors = (
+        f"https://sourceforge.net/settings/mirror_choices?"
+        f"projectname={project}&filename={file_path}"
+    )
+    page = BeautifulSoup(requests.get(mirrors).content, "html.parser")
+    info = page.find("ul", {"id": "mirrorList"}).findAll("li")
+    for mirror in info[1:]:
+        dl_url = f'https://{mirror["id"]}.dl.sourceforge.net/project/{project}/{file_path}?viasf=1'
+    return dl_url
+
+def sourceforge2(url: str) -> str:
+    """ Sourceforge Master.dl bypass """
+    return f"{url}" + "?viasf=1"
+
+def androidatahost(url: str) -> str:
+    """ Androiddatahost direct generator
+        Based on https://github.com/nekaru-storage/re-cerminbot """
+    try:
+        link = re.findall(r"\bhttps?://androiddatahost\.com\S+", url)[0]
+    except IndexError:
+        return "`No Androiddatahost links found`\n"
+    url3 = BeautifulSoup(requests.get(link).content, "html.parser")
+    fin = url3.find("div", {'download2'})
+    return fin.find('a')["href"]
+
+def sfile(url: str) -> str:
+    """ Sfile.mobi direct generator
+        Based on https://github.com/nekaru-storage/re-cerminbot """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0.1; SM-G532G Build/MMB29T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.83 Mobile Safari/537.36'
+    }
+    url3 = BeautifulSoup(requests.get(url, headers=headers).content, "html.parser")
+    return url3.find('a', 'w3-button w3-blue')['href']
+
+def fembed720(link: str) -> str:
+    bypasser = lk21.Bypass()
+    try:
+        dl_url=bypasser.bypass_url(link)
+        return (dl_url[1]['value'])
+    except:
+        raise DirectDownloadLinkException("💬 Ada kesalahan saat proses generate link. Please recheck your link.")
+
+def fembed480(link: str) -> str:
+    bypasser = lk21.Bypass()
+    try:
+        dl_url=bypasser.bypass_url(link)
+        return (dl_url[0]['value'])
+    except:
+        raise DirectDownloadLinkException("💬 Ada kesalahan saat proses generate link. Please recheck your link.")
+
+def fembed360(link: str) -> str:
+    bypasser = lk21.Bypass()
+    try:
+        dl_url=bypasser.bypass_url(link)
+        return (dl_url[0]['value'])
+    except:
+        raise DirectDownloadLinkException("💬 Ada kesalahan saat proses generate link. Please recheck your link.")
 
 def zippy_share(url: str) -> str:
     """ ZippyShare direct link generator
@@ -130,26 +230,84 @@ def yandex_disk(url: str) -> str:
         raise DirectDownloadLinkException("ERROR: File not found/Download limit reached\n")
 
 def uptobox(url: str) -> str:
-    """ Uptobox direct link generator
+    """ Uptobox direct links generator
     based on https://github.com/jovanzers/WinTenCermin """
     try:
         link = re.findall(r'\bhttps?://.*uptobox\.com\S+', url)[0]
     except IndexError:
-        raise DirectDownloadLinkException("No Uptobox links found\n")
+        raise DirectDownloadLinkException("💬 Link yang kamu masukkan salah\n")
+    if "::" in link:
+        pswd = link.split("::")[-1]
+        urls = link.split("::")[-2]
+    else:
+        pswd = None
+        urls = link
     if UPTOBOX_TOKEN is None:
         LOGGER.error('UPTOBOX_TOKEN not provided!')
-        dl_url = link
+        dl_url = url
     else:
         try:
             link = re.findall(r'\bhttp?://.*uptobox\.com/dl\S+', url)[0]
-            dl_url = link
+            LOGGER.info('Uptobox direct link')
+            dl_url = url
         except:
-            file_id = re.findall(r'\bhttps?://.*uptobox\.com/(\w+)', url)[0]
-            file_link = 'https://uptobox.com/api/link?token=%s&file_code=%s' % (UPTOBOX_TOKEN, file_id)
-            req = requests.get(file_link)
-            result = req.json()
-            dl_url = result['data']['dlLink']
-    return dl_url
+            if pswd is not None:
+                file_id = re.findall(r'\bhttps?://.*uptobox\.com/(\w+)', urls)[0]
+                urlpass = f'https://uptobox.com/api/link?token={UPTOBOX_TOKEN}&file_code={file_id}&password={pswd}'
+                LOGGER.info(f"Uptobox Berpassword: {urlpass}")
+                req = requests.get(urlpass)
+                psjson = req.json()
+                if psjson['statusCode'] == 0:
+                    dl_url = psjson['data']['dlLink']
+                    return dl_url
+                elif psjson['statusCode'] == 17:
+                    raise DirectDownloadLinkException(f"ERROR: Password yang kamu masukkan salah.")
+                else:
+                    waiting = psjson['data']['waiting']+1
+                    token = psjson['data']['waitingToken']
+                    sleep(waiting)
+                    wtk = f'https://uptobox.com/api/link?token={UPTOBOX_TOKEN}&file_code={file_id}&waitingToken={token}&password={pswd}'
+                    rejson = requests.get(wtk)
+                    rejson = rejson.json()
+                    if rejson['statusCode'] == 0:
+                        dl_url = rejson['data']['dlLink']
+                        return dl_url
+                    else:
+                        msg = rejson['message']
+                        raise DirectDownloadLinkException(f"ERROR: {msg}.")
+            else:
+                file_id = re.findall(r'\bhttps?://.*uptobox\.com/(\w+)', urls)[0]
+                file_link = f'https://uptobox.com/api/link?token={UPTOBOX_TOKEN}&file_code={file_id}'
+                req = requests.get(file_link)
+                rejson = req.json()
+                LOGGER.info(f"Uptobox Free: {rejson}")
+                if rejson['statusCode'] == 16:
+                    waiting = rejson['data']['waiting']+1
+                    token = rejson['data']['waitingToken']
+                    sleep(waiting)
+                    wtk = f'https://uptobox.com/api/link?token={UPTOBOX_TOKEN}&file_code={file_id}&waitingToken={token}'
+                    rejson = requests.get(wtk)
+                    rejson = rejson.json()
+                    if rejson['statusCode'] == 0:
+                        dl_url = rejson['data']['dlLink']
+                        return dl_url
+                    else:
+                        msg = rejson['message']
+                        raise DirectDownloadLinkException(f"ERROR: {msg}.")
+                elif rejson['statusCode'] == 28:
+                    raise DirectDownloadLinkException(f"ERROR: File tidak ditemukan atau sudah dihapus.")
+                elif rejson['statusCode'] == 39:
+                    waktu = rejson['data']['waiting']
+                    wkt = get_readable_time(waktu)
+                    raise DirectDownloadLinkException(f"ERROR: Silahkan tunggu {wkt} karena Uptobox sedang limit.")
+                elif rejson['statusCode'] == 0:
+                    dl_url = rejson['data']['dlLink']
+                    return dl_url
+                elif rejson['statusCode'] == 17:
+                    raise DirectDownloadLinkException(f"ERROR: File uptobox ini membutuhkan password. Untuk memasukkan password gabungkan password dan link dg ::, gunakan format seperti ini /{BotCommands.MirrorCommand} https://uptobox.com/e636i350nmcp::01001000010000100100010001000011")
+                else:
+                    msg = rejson['message']
+                    raise DirectDownloadLinkException(f"ERROR: {msg}")
 
 def mediafire(url: str) -> str:
     """ MediaFire direct link generator """
