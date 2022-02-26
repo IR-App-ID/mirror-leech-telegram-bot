@@ -463,8 +463,15 @@ def _mirror(bot, update, isZip=False, extract=False, isQbit=False, isLeech=False
         Thread(target=add_qb_torrent, args=(link, f'{DOWNLOAD_DIR}{listener.uid}/', listener, qbitsel)).start()
 
     else:
-        msg = f'<a href="tg://user?id={update.message.from_user.id}">{update.message.from_user.first_name}</a> (<code>{update.message.from_user.id}</code>) mengirim link {link} ..'
-        sendMessage(msg, bot, update)
+        if reply_to is not None:
+           pesan = reply_to.text
+        else:
+           pesan = update.message.text.split()[1]
+        msg = f'<a href="tg://user?id={update.message.from_user.id}">{update.message.from_user.first_name}</a> (<code>{update.message.from_user.id}</code>) mengirim link {pesan} ..'
+        if not link.startswith("https://api.telegram.org"):
+           mssg = sendMessage("Memproses permintaan kamu..", bot, update)
+           time.sleep(2)
+           editMessage(msg, mssg)
         Thread(target=add_aria2c_download, args=(link, f'{DOWNLOAD_DIR}{listener.uid}/', listener, name)).start()
 
 def mirror(update, context):
