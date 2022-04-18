@@ -3,6 +3,7 @@ import os
 
 from os import path as ospath, remove as osremove, execl as osexecl
 from subprocess import run as srun
+from subprocess import check_output
 from asyncio import run as asyrun
 from psutil import disk_usage, cpu_percent, swap_memory, cpu_count, virtual_memory, net_io_counters, Process as psprocess
 from time import time
@@ -254,7 +255,9 @@ def main():
         osremove(".restartmsg")
     elif OWNER_ID:
         try:
-            text = "<b>Bot Restarted!</b>"
+            botVersion = check_output(["git log -1 --date=format:v%y.%m%d.%H%M --pretty=format:%cd"], shell=True).decode()
+            last_commit = check_output(["git log -1 --date=short --pretty=format:'%cd <b>from</b> %cr'"], shell=True).decode()
+            text = f"<b>🟢 Server Menyala.</b>\n⏰ {current}\n\n<b>Versi Bot:</b> <code>{botVersion}</code>\n<b>Last Commit:</b> <code>{last_commit}</code>"
             bot.sendMessage(chat_id=OWNER_ID, text=text, parse_mode=ParseMode.HTML)
             if AUTHORIZED_CHATS:
                 for i in AUTHORIZED_CHATS:
